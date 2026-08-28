@@ -5,6 +5,8 @@ import (
  	"strings"
  	
 	"github.com/gofiber/fiber/v2"
+	"api-students/app/model"
+	"api-students/app/repository"
 )
 
 var students []Student
