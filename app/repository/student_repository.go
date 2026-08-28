@@ -94,7 +94,7 @@ func (r *studentPostgresRepository) FindAll(
 
 	rows, err := r.pool.Query(ctx, sqlText, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("mengambil daftar user: %w", err)
+		return nil, 0, fmt.Errorf("mengambil daftar student: %w", err)
 	}
 	defer rows.Close()
 
@@ -103,7 +103,7 @@ func (r *studentPostgresRepository) FindAll(
 		var u model.Student
 		if err := rows.Scan(&u.ID, &u.Nim, &u.Name, &u.Grade,
 			&u.IsActive, &u.CreatedAt); err != nil {
-			return nil, 0, fmt.Errorf("membaca baris user: %w", err)
+			return nil, 0, fmt.Errorf("membaca baris student: %w", err)
 		}
 		hasil = append(hasil, u)
 	}
@@ -127,7 +127,7 @@ func (r *studentPostgresRepository) FindByID(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
 		}
-		return model.Student{}, fmt.Errorf("mengambil user: %w", err)
+		return model.Student{}, fmt.Errorf("mengambil student: %w", err)
 	}
 	return u, nil
 }
@@ -146,7 +146,7 @@ func (r *studentPostgresRepository) Create(
 		if isUniqueViolation(err) {
 			return model.Student{}, ErrDuplicate
 		}
-		return model.Student{}, fmt.Errorf("menyimpan user: %w", err)
+		return model.Student{}, fmt.Errorf("menyimpan student: %w", err)
 	}
 	return u, nil
 }
@@ -169,7 +169,7 @@ func (r *studentPostgresRepository) Update(
 		if isUniqueViolation(err) {
 			return model.Student{}, ErrDuplicate
 		}
-		return model.Student{}, fmt.Errorf("memperbarui user: %w", err)
+		return model.Student{}, fmt.Errorf("memperbarui student: %w", err)
 	}
 
 	return u, nil
@@ -178,7 +178,7 @@ func (r *studentPostgresRepository) Update(
 func (r *studentPostgresRepository) Delete(ctx context.Context, id int) error {
 	cmd, err := r.pool.Exec(ctx, `DELETE FROM students WHERE id = $1`, id)
 	if err != nil {
-		return fmt.Errorf("menghapus user: %w", err)
+		return fmt.Errorf("menghapus student: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
 		return ErrNotFound
