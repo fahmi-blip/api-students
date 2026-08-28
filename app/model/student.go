@@ -1,26 +1,29 @@
 package model
 
+import "time"
+
 type Student struct {
 	ID int `json:"id"`
 	Nim string `json:"nim"`
 	Name string `json:"name"`
 	Grade float64 `json:"grade"`
 	IsActive bool `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-type CreatedUserRequest struct{
+type CreatedStudentRequest struct{
 	Nim	string	`json:"nim"` 
 	Name string	`json:"name"` 
 	Grade float64	`json:"grade"` 
 }
 
-type ReplaceUserRequest struct{
+type ReplaceStudentRequest struct{
 	Name string `json:"name"`
 	Grade float64 `json:"grade"`
 	IsActive bool `json:"is_active"`
 }
 
-type PatchUserRequest struct{
+type PatchStudentRequest struct{
 	Name *string `json:"name,omitempty"`
 	Grade *float64 `json:"grade,omitempty"`
 	IsActive *bool `json:"is_active,omitempty"`
@@ -51,4 +54,8 @@ type ListQuery struct{
 	IsActive	*bool
 	MinGrade 	*float64
 	MaxGrade 	*float64
+}
+
+func (q ListQuery) Offset() int { 
+	return (q.Page - 1) * q.Limit
 }
