@@ -37,7 +37,7 @@ type studentPostgresRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewUserRepository(pool *pgxpool.Pool) StudentRepository {
+func NewStudentRepository(pool *pgxpool.Pool) StudentRepository {
 	return &studentPostgresRepository{pool: pool}
 }
 
@@ -119,9 +119,9 @@ func (r *studentPostgresRepository) FindByID(
 	var u model.Student
 
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, nim, name, grade, is_active
+		`SELECT id, nim, name, grade, is_active, created_at
 		FROM students WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive)
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -136,11 +136,11 @@ func (r *studentPostgresRepository) Create(
 	ctx context.Context, u model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-		`INSERT INTO students (nim, name, grade, is_active)
+	`INSERT INTO students (nim, name, grade, is_active)
 	VALUES ($1, $2, $3, $4)
-	RETURNING id`,
+	RETURNING id, created_at`,
 		u.Nim, u.Name, u.Grade, u.IsActive,
-	).Scan(&u.ID)
+	).Scan(&u.ID, &u.CreatedAt)
 
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -158,7 +158,7 @@ func (r *studentPostgresRepository) Update(
 		`UPDATE students
 		 SET name = $1, grade = $2, is_active = $3
 		 WHERE id = $4
-		 RETURNING id, nim, name, grade, is_active`,
+		 RETURNING id, nim, name, grade, is_active, created_at`,
 		u.Name, u.Grade, u.IsActive, u.ID,
 	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.CreatedAt)
 
