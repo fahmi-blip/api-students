@@ -5,6 +5,11 @@ import (
  	"log"
  	"strings"
  	"time"
+	"context"
+	"api-students/app/repository"
+	"api-students/config"
+	"api-students/database"
+
  	"github.com/gofiber/fiber/v2"
  	"github.com/gofiber/fiber/v2/middleware/cors"
  	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -31,8 +36,20 @@ func requireJSON(c *fiber.Ctx) error {
 }
 
 func main() {
+	config.LoadEnv()
+
+	pool, err := database.NewPool(context.Background()) 
+	if err != nil { 
+		log.Fatalf("database: %v", err) 
+	} 
+	defer pool.Close() 
+	
+	// 3. Perakitan: pool -> repository -> handler 
+	studentRepository := repository.NewStudentRepository(pool) 
+	studentHandler := NewStudentHandler(studentRepository) 
+	
  	app := fiber.New(fiber.Config{
- 		AppName: "Praktikum Backend Lanjut - Pertemuan 2",
+ 		AppName: "Praktikum Backend Lanjut",
  		ErrorHandler: func(c *fiber.Ctx, err error) error {
  			status := fiber.StatusInternalServerError
  			pesan := "terjadi kesalahan pada server"
@@ -57,17 +74,23 @@ func main() {
  	api := app.Group("/api/v1")
  	
 	api.Get("/health", func(c *fiber.Ctx) error {
- 		return ok(c, "server berjalan", fiber.Map{"timestamp": time.Now()})
+ 		ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
+		defer cancel()
+
+		if err := pool.Ping(ctx); err != nil { 
+			return fail(c, fiber.StatusServiceUnavailable, "database tidak dapat dihubungi") 
+		} 
+		return ok(c, "server dan database berjalan", nil)
  	})
  	
 	// requireJSON dipasang khusus pada grup ini, bukan global
  	u := api.Group("/students", requireJSON)
- 	u.Get("/", listStudents)
- 	u.Get("/:id", getUser)
- 	u.Post("/", createUser)
- 	u.Put("/:id", replaceUser)
- 	u.Patch("/:id", patchUser)
- 	u.Delete("/:id", deleteUser)
+ 	u.Get("/", studentHandler.List)
+ 	u.Get("/:id", studentHandler.Get)
+ 	u.Post("/", studentHandler.Create)
+ 	u.Put("/:id", studentHandler.Replace)
+ 	u.Patch("/:id", studentHandler.Patch)
+ 	u.Delete("/:id", studentHandler.Delete)
  	
 	// Endpoint yang tidak dikenal
  	app.Use(func(c *fiber.Ctx) error {

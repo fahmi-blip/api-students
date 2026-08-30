@@ -74,11 +74,6 @@ func parseListQuery(c *fiber.Ctx) model.ListQuery {
 	if q.Order != "desc" {
 		q.Order = "asc"
 	}
-	if raw := c.Query("is_active"); raw != "" {
-		if v, err := strconv.ParseBool(raw); err == nil {
-			q.IsActive = &v
-		}
-	}
 	if raw := c.Query("min_grade"); raw != "" {
 		if v, err := strconv.ParseFloat(raw, 64); err == nil{
 			q.MinGrade = &v
@@ -89,7 +84,20 @@ func parseListQuery(c *fiber.Ctx) model.ListQuery {
 			q.MaxGrade = &v
 		}
 	}
+	if raw := c.Query("is_active"); raw != "" {
+		if v, err := strconv.ParseBool(raw); err == nil {
+			q.IsActive = &v
+		}
+	}
 	return q
+}
+
+func paramID(c *fiber.Ctx) (int, bool) {
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
 }
 
 func reqCtx(c *fiber.Ctx) (context.Context, context.CancelFunc) { 
