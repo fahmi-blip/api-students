@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -23,6 +24,7 @@ type StudentRepository interface {
 	Create(ctx context.Context, u model.Student) (model.Student, error)
 	Update(ctx context.Context, u model.Student) (model.Student, error)
 	Delete(ctx context.Context, id int) error
+	FindByIDWithPrestasi(ctx context.Context, id int) (model.StudentWithPrestation, error)
 }
 
 var kolomUrut = map[string]string{
@@ -149,6 +151,56 @@ func (r *studentPostgresRepository) Create(
 		return model.Student{}, fmt.Errorf("menyimpan student: %w", err)
 	}
 	return u, nil
+}
+
+func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id int) (model.StudentWithPrestation, error) {
+	rows, err := r.pool.Query(ctx, 
+		`SELECT s.id, s.nim, s.name, s.grade, s.is_active ,s.created_at,
+			p.id, p.student_id, p.name_prestation, p.juara 
+		 FROM students s
+		 LEFT JOIN prestasi p ON p.student_id = s.id
+		 WHERE s.id = $1 
+		 ORDER BY p.id`, id,
+		)
+	if err != nil {
+		return model.StudentWithPrestation{}, fmt.Errorf("mengambil student dengan prestasi: %w", err)
+	}
+	defer rows.Close()
+
+	var hasil model.StudentWithPrestation
+	ditemukan := false
+	for rows.Next() {
+		var s model.Student
+		var pID, pStudentID sql.NullInt64
+		var pNamePrestation, pJuara sql.NullString
+
+		if err := rows.Scan(
+			&s.ID, &s.Nim, &s.Name, &s.Grade, &s.IsActive,&s.CreatedAt,
+			&pID, &pStudentID, &pNamePrestation, &pJuara,
+			); err != nil {
+			return model.StudentWithPrestation{}, fmt.Errorf("membaca baris post: %w", err)
+		}
+		if !ditemukan {
+			hasil.Student = s
+			hasil.Prestasi = []model.Prestation{}
+			ditemukan = true
+		}
+		if pID.Valid{
+			hasil.Prestasi = append(hasil.Prestasi, model.Prestation{
+				ID: int(pID.Int64),
+				StudentID: int(pStudentID.Int64),
+				NamePrestation: pNamePrestation.String,
+				Juara: pJuara.String,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return model.StudentWithPrestation{}, fmt.Errorf("membaca hasil query: %w", err)
+	}
+	if !ditemukan {
+		return model.StudentWithPrestation{}, ErrNotFound
+	}
+	return hasil, rows.Err()
 }
 
 func (r *studentPostgresRepository) Update(
