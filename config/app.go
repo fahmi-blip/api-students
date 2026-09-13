@@ -2,9 +2,7 @@ package config
 
 import ( 
 	"log/slog" 
-	"github.com/gofiber/fiber/v2" 
-	"github.com/jackc/pgx/v5/pgxpool" 
-	"api-students/app/service" 
+	"github.com/gofiber/fiber/v2"
 	"api-students/helper" 
 	"api-students/middleware" 
 	"api-students/route" 
@@ -13,15 +11,17 @@ import (
 // NewApp merakit aplikasi: membuat instance Fiber, memasang middleware, 
 // lalu mendaftarkan route. File ini adalah tempat seluruh bagian bertemu. 
 func NewApp( 
-	logger *slog.Logger, pool *pgxpool.Pool, userService *service.StudentService, 
+	logger *slog.Logger, deps route.Dependencies, 
 ) *fiber.App { 
 	app := fiber.New(fiber.Config{ 
 		AppName: GetEnv("APP_NAME", "Praktikum Backend Lanjut"), 
 		ErrorHandler: newErrorHandler(logger), 
+	
+		BodyLimit: 1 * 1024 * 1024,
 	}) 
 	
-	middleware.Register(app, logger) 
-	route.Register(app, pool, userService) 
+	middleware.Register(app, logger,GetEnv("ALLOWED_ORIGINS", "")) 
+	route.Register(app, deps) 
 	
 	// Penampung terakhir untuk URL yang tidak dikenal. 
 	app.Use(func(c *fiber.Ctx) error { 
