@@ -11,6 +11,18 @@ type Student struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type Prestation struct {
+	ID int `json:"id"`
+	StudentID int `json:"student_id"`
+	NamePrestation string `json:"name_prestation"`
+	Juara string `json:"juara"`
+}
+
+type StudentWithPrestation struct {
+	Student
+	Prestasi []Prestation `json:"prestasi"`	
+}
+
 type CreatedStudentRequest struct{
 	Nim	string	`json:"nim"` 
 	Name string	`json:"name"` 
