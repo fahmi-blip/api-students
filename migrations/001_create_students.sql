@@ -12,3 +12,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS students_nim_key
 
 CREATE INDEX IF NOT EXISTS students_name_lower_idx
     ON students (LOWER(name));
+
+
