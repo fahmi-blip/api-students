@@ -95,6 +95,21 @@ func (h *StudentService) Create(c *fiber.Ctx) error {
 		"/api/v1/students/"+strconv.Itoa(newStudent.ID),
 	)
 }
+func (h *StudentService) GetWithPrestation(c *fiber.Ctx) error {
+	ctx, cancel := helper.ReqCtx(c)
+	defer cancel()
+
+	id, valid := helper.ParamID(c)
+	if !valid {
+		return helper.Fail(c, fiber.StatusBadRequest, "id harus berupa angka positif")
+	}
+
+	result, err := h.repo.FindByIDWithPrestasi(ctx,id)
+	if err != nil {
+		return terjemahkanError(c,err,"gagal mengambil data student dengan prestasi")
+	}
+	return helper.Ok(c, fiber.StatusOK, "student dengan prestasi ditemukan", result)
+}
 
 func (h *StudentService) Replace(c *fiber.Ctx) error {
 	ctx, cancel := helper.ReqCtx(c)
