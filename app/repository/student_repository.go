@@ -86,7 +86,7 @@ func (r *studentPostgresRepository) FindAll(
 	}
 
 	sqlText := fmt.Sprintf(
-		`SELECT id, nim, name, grade, is_active, created_at 
+		`SELECT id, nim, name, grade, is_active,COALESCE(owner_id, 0), created_at 
 		 FROM students%s 
 		 ORDER BY %s %s 
 		 LIMIT $%d OFFSET $%d`,
@@ -104,7 +104,7 @@ func (r *studentPostgresRepository) FindAll(
 	for rows.Next() {
 		var u model.Student
 		if err := rows.Scan(&u.ID, &u.Nim, &u.Name, &u.Grade,
-			&u.IsActive, &u.CreatedAt); err != nil {
+			&u.IsActive, &u.OwnerID ,&u.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("membaca baris student: %w", err)
 		}
 		hasil = append(hasil, u)
@@ -121,9 +121,9 @@ func (r *studentPostgresRepository) FindByID(
 	var u model.Student
 
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, nim, name, grade, is_active, created_at
+		`SELECT id, nim, name, grade, is_active, COALESCE(owner_id, 0),created_at
 		FROM students WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.CreatedAt)
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.OwnerID ,&u.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -138,10 +138,10 @@ func (r *studentPostgresRepository) Create(
 	ctx context.Context, u model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-	`INSERT INTO students (nim, name, grade, is_active)
-	VALUES ($1, $2, $3, $4)
+	`INSERT INTO students (nim, name, grade, is_active, owner_id)
+	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id, created_at`,
-		u.Nim, u.Name, u.Grade, u.IsActive,
+		u.Nim, u.Name, u.Grade, u.IsActive, u.OwnerID,
 	).Scan(&u.ID, &u.CreatedAt)
 
 	if err != nil {
@@ -210,9 +210,9 @@ func (r *studentPostgresRepository) Update(
 		`UPDATE students
 		 SET name = $1, grade = $2, is_active = $3
 		 WHERE id = $4
-		 RETURNING id, nim, name, grade, is_active, created_at`,
+		 RETURNING id, nim, name, grade, is_active,COALESCE(owner_id,0) ,created_at`,
 		u.Name, u.Grade, u.IsActive, u.ID,
-	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.CreatedAt)
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive,&u.OwnerID ,&u.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
