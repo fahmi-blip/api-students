@@ -155,7 +155,7 @@ func (r *studentPostgresRepository) Create(
 
 func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id int) (model.StudentWithPrestation, error) {
 	rows, err := r.pool.Query(ctx, 
-		`SELECT s.id, s.nim, s.name, s.grade, s.is_active ,s.created_at,
+		`SELECT s.id, s.nim, s.name, s.grade, s.is_active ,s.created_at,s.owner_id,
 			p.id, p.student_id, p.name_prestation, p.juara 
 		 FROM students s
 		 LEFT JOIN prestasi p ON p.student_id = s.id
@@ -175,8 +175,8 @@ func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id
 		var pNamePrestation, pJuara sql.NullString
 
 		if err := rows.Scan(
-			&s.ID, &s.Nim, &s.Name, &s.Grade, &s.IsActive,&s.CreatedAt,
-			&pID, &pStudentID, &pNamePrestation, &pJuara,
+			&s.ID, &s.Nim, &s.Name, &s.Grade, &s.IsActive,&s.CreatedAt, &s.OwnerID ,
+			&pID, &pStudentID, &pNamePrestation ,&pJuara,
 			); err != nil {
 			return model.StudentWithPrestation{}, fmt.Errorf("membaca baris post: %w", err)
 		}

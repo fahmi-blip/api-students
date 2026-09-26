@@ -39,7 +39,7 @@ INSERT INTO role_permissions (role_name, permission_name) VALUES
     ('admin', 'role:assign'),
     ('staff', 'student:list'),
     ('staff', 'student:read:any'),
-    ('staff', 'student:create'),
+    ('staff', 'student:create')
 ON CONFLICT DO NOTHING;
 
 UPDATE users SET role = 'user' WHERE role NOT IN (SELECT name FROM roles);

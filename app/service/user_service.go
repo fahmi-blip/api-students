@@ -110,16 +110,24 @@ func (h *StudentService) GetWithPrestation(c *fiber.Ctx) error {
 	ctx, cancel := helper.ReqCtx(c)
 	defer cancel()
 
+	current, ok := helper.CurrentUser(c)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "belum terautentikasi")
+	}
+
 	id, valid := helper.ParamID(c)
 	if !valid {
 		return helper.Fail(c, fiber.StatusBadRequest, "id harus berupa angka positif")
 	}
 
-	result, err := h.repo.FindByIDWithPrestasi(ctx,id)
+	student, err := h.repo.FindByIDWithPrestasi(ctx,id)
 	if err != nil {
 		return terjemahkanError(c,err,"gagal mengambil data student dengan prestasi")
 	}
-	return helper.Ok(c, fiber.StatusOK, "student dengan prestasi ditemukan", result)
+	if !CanAccessStudent(current, student.OwnerID, h.perms, "student:read:any") {
+		return helper.Fail(c, fiber.StatusForbidden, "tidak berhak mengakses data student ini")
+	}
+	return helper.Ok(c, fiber.StatusOK, "student dengan prestasi ditemukan", student)
 }
 
 func (h *StudentService) Replace(c *fiber.Ctx) error {
