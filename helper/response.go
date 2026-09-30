@@ -1,40 +1,41 @@
 package helper
 
-import(
-	"github.com/gofiber/fiber/v2"
+import (
 	"api-students/app/model"
+	"github.com/gofiber/fiber/v2"
 )
 
-func Ok(c *fiber.Ctx, status int ,message string, data any) error {
+func Ok(c *fiber.Ctx, status int, message string, data any) error {
 	return c.Status(status).JSON(model.WebResponse{
 		Success: true, Message: message, Data: data,
 	})
 }
 
-func OkList(c *fiber.Ctx, message string, data any, meta *model.Meta ) error {
+func OkList(c *fiber.Ctx, message string, data any, meta *model.Meta) error {
 	return c.Status(fiber.StatusOK).JSON(model.WebResponse{
 		Success: true, Message: message, Data: data, Meta: meta,
 	})
 }
 
 func Created(c *fiber.Ctx, message string, data any, location string) error {
- 	c.Set("Location", location) // memberi tahu klien di mana sumber daya baru berada
- 	return c.Status(fiber.StatusCreated).JSON(model.WebResponse{
- 		Success: true, Message: message, Data: data,
- 	})
+	c.Set("Location", location) // memberi tahu klien di mana sumber daya baru berada
+	return c.Status(fiber.StatusCreated).JSON(model.WebResponse{
+		Success: true, Message: message, Data: data,
+	})
 }
-
 
 func NoContent(c *fiber.Ctx) error {
- return c.SendStatus(fiber.StatusNoContent) // 204: berhasil, tanpa body
+	return c.SendStatus(fiber.StatusNoContent) // 204: berhasil, tanpa body
 }
 
-func Fail(c *fiber.Ctx, status int, message string) error {
- return c.Status(status).JSON(model.WebResponse{Success: false, Message: message})
+func Success(c *fiber.Ctx, status int, message string, data any) error {
+	return c.Status(status).JSON(model.WebResponse{
+		Success: true, Message: message, Data: data,
+	})
 }
 
-func FailValidation(c *fiber.Ctx, errs map[string]string) error {
-	 return c.Status(fiber.StatusUnprocessableEntity).JSON(model.WebResponse{
- 		Success: false, Message: "validasi gagal", Errors: errs,
- 	})
+func SuccessCursor(c *fiber.Ctx, message string, data any, meta *model.CursorMeta) error {
+	return c.Status(fiber.StatusOK).JSON(model.WebResponse{
+		Success: true, Message: message, Data: data, Meta: meta,
+	})
 }
