@@ -19,7 +19,7 @@ func NewPool(ctx context.Context) (*pgxpool.Pool, error) {
 		config.GetEnv("DB_PASSWORD", ""),
 		config.GetEnv("DB_HOST", "localhost"),
 		config.GetEnv("DB_PORT", "5432"),
-		config.GetEnv("DB_NAME", "praktikum_backend"),
+		config.GetEnv("DB_NAME", "backend"),
 		config.GetEnv("DB_SSLMODE", "disable"),
 	)
 
