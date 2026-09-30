@@ -20,6 +20,7 @@ var (
 
 type StudentRepository interface {
 	FindAll(ctx context.Context, q model.ListQuery) ([]model.Student, int, error)
+	FindAfterCursor(ctx context.Context, q model.StudentCursorQuery) ([]model.Student, error)
 	FindByID(ctx context.Context, id int) (model.Student, error)
 	Create(ctx context.Context, u model.Student) (model.Student, error)
 	Update(ctx context.Context, u model.Student) (model.Student, error)
@@ -28,10 +29,10 @@ type StudentRepository interface {
 }
 
 var kolomUrut = map[string]string{
-	"id":    "id",
-	"nim":   "nim",
-	"name":  "name",
-	"grade": "grade",
+	"id":         "id",
+	"nim":        "nim",
+	"name":       "name",
+	"grade":      "grade",
 	"created_at": "created_at",
 }
 
@@ -104,7 +105,7 @@ func (r *studentPostgresRepository) FindAll(
 	for rows.Next() {
 		var u model.Student
 		if err := rows.Scan(&u.ID, &u.Nim, &u.Name, &u.Grade,
-			&u.IsActive, &u.OwnerID ,&u.CreatedAt); err != nil {
+			&u.IsActive, &u.OwnerID, &u.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("membaca baris student: %w", err)
 		}
 		hasil = append(hasil, u)
@@ -115,6 +116,53 @@ func (r *studentPostgresRepository) FindAll(
 	return hasil, total, nil
 }
 
+func (r *studentPostgresRepository) FindAfterCursor(
+	ctx context.Context, q model.StudentCursorQuery,
+) ([]model.Student, error) {
+	args := []any{}
+	where := " WHERE 1 = 1"
+	if q.Search != "" {
+		args = append(args, "%"+q.Search+"%")
+		where += fmt.Sprintf(" AND (nim ILIKE $%d OR name ILIKE $%d)", len(args), len(args))
+	}
+	if q.IsActive != nil {
+		args = append(args, *q.IsActive)
+		where += fmt.Sprintf(" AND is_active = $%d", len(args))
+	}
+	if q.After != nil {
+		args = append(args, q.After.CreatedAt, q.After.ID)
+		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", len(args)-1, len(args))
+	}
+
+	args = append(args, q.Limit+1)
+	query := fmt.Sprintf(
+		`SELECT id, nim, name, grade, is_active, COALESCE(owner_id, 0), created_at
+		 FROM students%s
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT $%d`,
+		where, len(args),
+	)
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("mengambil daftar student: %w", err)
+	}
+	defer rows.Close()
+
+	result := []model.Student{}
+	for rows.Next() {
+		var student model.Student
+		if err := rows.Scan(&student.ID, &student.Nim, &student.Name, &student.Grade,
+			&student.IsActive, &student.OwnerID, &student.CreatedAt); err != nil {
+			return nil, fmt.Errorf("membaca row student: %w", err)
+		}
+		result = append(result, student)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("membaca hasil query student: %w", err)
+	}
+	return result, nil
+}
+
 func (r *studentPostgresRepository) FindByID(
 	ctx context.Context, id int,
 ) (model.Student, error) {
@@ -123,7 +171,7 @@ func (r *studentPostgresRepository) FindByID(
 	err := r.pool.QueryRow(ctx,
 		`SELECT id, nim, name, grade, is_active, COALESCE(owner_id, 0),created_at
 		FROM students WHERE id = $1`, id,
-	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.OwnerID ,&u.CreatedAt)
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.OwnerID, &u.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -138,7 +186,7 @@ func (r *studentPostgresRepository) Create(
 	ctx context.Context, u model.Student,
 ) (model.Student, error) {
 	err := r.pool.QueryRow(ctx,
-	`INSERT INTO students (nim, name, grade, is_active, owner_id)
+		`INSERT INTO students (nim, name, grade, is_active, owner_id)
 	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id, created_at`,
 		u.Nim, u.Name, u.Grade, u.IsActive, u.OwnerID,
@@ -154,14 +202,14 @@ func (r *studentPostgresRepository) Create(
 }
 
 func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id int) (model.StudentWithPrestation, error) {
-	rows, err := r.pool.Query(ctx, 
+	rows, err := r.pool.Query(ctx,
 		`SELECT s.id, s.nim, s.name, s.grade, s.is_active ,s.created_at,s.owner_id,
 			p.id, p.student_id, p.name_prestation, p.juara 
 		 FROM students s
 		 LEFT JOIN prestasi p ON p.student_id = s.id
 		 WHERE s.id = $1 
 		 ORDER BY p.id`, id,
-		)
+	)
 	if err != nil {
 		return model.StudentWithPrestation{}, fmt.Errorf("mengambil student dengan prestasi: %w", err)
 	}
@@ -175,9 +223,9 @@ func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id
 		var pNamePrestation, pJuara sql.NullString
 
 		if err := rows.Scan(
-			&s.ID, &s.Nim, &s.Name, &s.Grade, &s.IsActive,&s.CreatedAt, &s.OwnerID ,
-			&pID, &pStudentID, &pNamePrestation ,&pJuara,
-			); err != nil {
+			&s.ID, &s.Nim, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt, &s.OwnerID,
+			&pID, &pStudentID, &pNamePrestation, &pJuara,
+		); err != nil {
 			return model.StudentWithPrestation{}, fmt.Errorf("membaca baris post: %w", err)
 		}
 		if !ditemukan {
@@ -185,12 +233,12 @@ func (r *studentPostgresRepository) FindByIDWithPrestasi(ctx context.Context, id
 			hasil.Prestasi = []model.Prestation{}
 			ditemukan = true
 		}
-		if pID.Valid{
+		if pID.Valid {
 			hasil.Prestasi = append(hasil.Prestasi, model.Prestation{
-				ID: int(pID.Int64),
-				StudentID: int(pStudentID.Int64),
+				ID:             int(pID.Int64),
+				StudentID:      int(pStudentID.Int64),
 				NamePrestation: pNamePrestation.String,
-				Juara: pJuara.String,
+				Juara:          pJuara.String,
 			})
 		}
 	}
@@ -212,7 +260,7 @@ func (r *studentPostgresRepository) Update(
 		 WHERE id = $4
 		 RETURNING id, nim, name, grade, is_active,COALESCE(owner_id,0) ,created_at`,
 		u.Name, u.Grade, u.IsActive, u.ID,
-	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive,&u.OwnerID ,&u.CreatedAt)
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.OwnerID, &u.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
