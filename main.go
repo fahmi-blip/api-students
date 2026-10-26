@@ -38,6 +38,37 @@ func main() {
 	} 
 	defer pool.Close() 
 	
+	mongoClient, err := database.NewMongoClient(context.Background())
+	if err != nil {
+	    logger.Error("gagal terhubung ke MongoDB",
+	        slog.String("error", err.Error()))
+	    os.Exit(1)
+	}
+	
+	// Menutup koneksi MongoDB saat main selesai
+	defer func() {
+	    ctx, cancel := context.WithTimeout(
+	        context.Background(),
+	        5*time.Second,
+	    )
+	    defer cancel()
+	
+	    if err := mongoClient.Disconnect(ctx); err != nil {
+	        logger.Error("gagal menutup koneksi MongoDB",
+	            slog.String("error", err.Error()))
+	    }
+	}()
+
+	mongoDB := mongoClient.Database(
+    	config.GetEnv("MONGO_DATABASE", "praktikum_backend"),
+	)
+
+	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
 	// 3. Perakitan: pool -> repository -> handler 
 	
 	jwtManager := helper.NewJWTManager(
@@ -60,17 +91,20 @@ func main() {
 	
 	studentRepository := repository.NewStudentRepository(pool) 	
 	studentService := service.NewStudentService(studentRepository, permissions)
+	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository)
 	authService := service.NewAuthService(
 		userRepository, tokenRepository, jwtManager,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:           pool,
-		JWT:            jwtManager,
-		Permissions: 	permissions,
-		StudentService: studentService,
-		AuthService:    authService,
+		Pool:             pool,
+		MongoClient:      mongoClient,
+		JWT:              jwtManager,
+		Permissions:      permissions,
+		StudentService:   studentService,
+		AuthService:      authService,
+		PortfolioService: portfolioService,
 	})
 	port := config.GetEnv("APP_PORT", "3000")
 
