@@ -90,3 +90,8 @@ func (e *AppError) Cause() error {
 func Internal(cause error) *AppError {
 	return &AppError{Status: fiber.StatusInternalServerError, Code: CodeInternal, Message: "terjadi kesalahan pada server", cause: cause}
 }
+
+func NewError(status int, code, message string) *AppError {
+	return &AppError{Status: status, Code: code, Message: message}
+}
+
