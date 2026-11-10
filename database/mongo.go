@@ -8,11 +8,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref" 
 	"api-students/config" 
 ) 
-// NewMongoClient menyiapkan client MongoDB dan memastikan servernya benar-benar // dapat dihubungi. // 
-// // Berbeda dari pgxpool, mongo.Connect pada driver v2 TIDAK menghubungi server 
-// // sama sekali — ia hanya menyiapkan client. Alamat yang salah atau server yang // 
-// mati baru ketahuan saat query pertama. Karena itu Ping wajib dilakukan di sini: // 
-// lebih baik aplikasi menolak menyala daripada gagal pada request pertama. 
 
 func NewMongoClient(ctx context.Context) (*mongo.Client, error) { 
 	opts := options.Client(). 
@@ -32,3 +27,4 @@ func NewMongoClient(ctx context.Context) (*mongo.Client, error) {
 	} 
 	return client, nil 
 }
+
