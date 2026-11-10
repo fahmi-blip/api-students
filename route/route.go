@@ -3,7 +3,6 @@ package route
 import (
 	"context"
 	"time"
-
 	"api-students/app/service"
 	"api-students/helper"
 	"api-students/middleware"
@@ -14,13 +13,17 @@ import (
 )
 
 type Dependencies struct {
-	Pool             *pgxpool.Pool
-	MongoClient      *mongo.Client
-	JWT              *helper.JWTManager
-	Permissions      *helper.PermissionSet
-	StudentService   *service.StudentService
-	AuthService      *service.AuthService
-	PortfolioService *service.PortfolioService
+	Pool              *pgxpool.Pool
+	MongoClient       *mongo.Client
+	JWT               *helper.JWTManager
+	Permissions       *helper.PermissionSet
+	StudentService    *service.StudentService
+	AuthService       *service.AuthService
+	PortfolioService  *service.PortfolioService
+	CourseService     *service.CourseService
+	NotificationService *service.NotificationService
+	SupervisionService *service.SupervisionService
+
 }
 
 func Register(app *fiber.App, deps Dependencies) {
@@ -34,7 +37,7 @@ func Register(app *fiber.App, deps Dependencies) {
 	auth.Post("/refresh", deps.AuthService.Refresh)
 	auth.Post("/logout", deps.AuthService.Logout)
 	auth.Get("/me", middleware.RequireAuth(deps.JWT), deps.AuthService.Me)
-
+	
 	students := api.Group("/students",
 		middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
 
@@ -51,15 +54,54 @@ func Register(app *fiber.App, deps Dependencies) {
 	students.Put("/:id", deps.StudentService.Replace)
 	students.Patch("/:id", deps.StudentService.Patch)
 
-	portfolios := api.Group("/portfolios",
-		middleware.RequireJSON,
-		middleware.RequireAuth(deps.JWT))
-	
-	portfolios.Get("/stats/technologies", deps.PortfolioService.TopTechnologies)
 	students.Get("/:id/portfolio", deps.PortfolioService.Get)
 	students.Put("/:id/portfolio", deps.PortfolioService.Put)
 	students.Post("/:id/portfolio/projects", deps.PortfolioService.AddProject)
 	students.Delete("/:id/portfolio/projects/:projectId", deps.PortfolioService.DeleteProject)
+	
+	portfolios := api.Group("/portfolios",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	portfolios.Get("/stats/technologies", deps.PortfolioService.TopTechnologies)
+
+	// --- kelas dan KRS --- 
+	courses := api.Group("/courses", 
+		middleware.RequireJSON, 
+		middleware.RequireAuth(deps.JWT)) 
+	// "/mine" didaftarkan SEBELUM "/:id". Fiber mencocokkan route sesuai 
+	// urutan pendaftaran; bila dibalik, "mine" akan dianggap sebagai :id. 
+	courses.Get("/", deps.CourseService.List) 
+	courses.Get("/mine", deps.CourseService.Mine) 
+	courses.Get("/:id", deps.CourseService.Get)
+	courses.Post("/:id/enroll", deps.CourseService.Enroll)
+	courses.Delete("/:id/enroll", deps.CourseService.Drop)
+	courses.Patch("/:id", middleware.RequirePermission(perms, "course:manage"), deps.CourseService.UpdateQuota)
+	
+	enrollments := api.Group("/enrollments", 
+		middleware.RequireJSON, 
+		middleware.RequireAuth(deps.JWT)) 
+	enrollments.Post("/swap", deps.CourseService.Swap)
+
+	supervisors := api.Group("/supervisors",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	supervisors.Post("/:id/assign", middleware.RequirePermission(perms, "supervision:manage"), deps.SupervisionService.Assign)
+	supervisors.Patch("/:id", middleware.RequirePermission(perms, "supervision:manage"), deps.SupervisionService.UpdateQuota)
+
+	supervisions := api.Group("/supervisions",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	supervisions.Post("/switch", middleware.RequirePermission(perms, "supervision:manage"), deps.SupervisionService.Switch)
+
+	notifications := api.Group("/notifications", 
+		middleware.RequireJSON, 
+		middleware.RequireAuth(deps.JWT)) 
+	notifications.Get("/mine", deps.NotificationService.Mine) 
+	
+	admin := api.Group("/admin", 
+		middleware.RequireJSON, 
+		middleware.RequireAuth(deps.JWT)) 
+	admin.Get("/queue", middleware.RequirePermission(perms, "queue:monitor"), deps.NotificationService.Monitor)
 }
 
 func healthCheck(pool *pgxpool.Pool, mongoClient *mongo.Client) fiber.Handler {
