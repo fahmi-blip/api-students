@@ -3,13 +3,27 @@ package model
 import "time"
 
 type Student struct {
-	ID        int       `json:"id"`
-	Nim       string    `json:"nim"`
-	Name      string    `json:"name"`
-	Grade     float64   `json:"grade"`
-	IsActive  bool      `json:"is_active"`
-	OwnerID   int       `json:"owner_id"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          int       `json:"id"`
+	Nim         string    `json:"nim"`
+	Name        string    `json:"name"`
+	Grade       float64   `json:"grade"`
+	IpkTerakhir float64   `json:"ipk_terakhir,omitempty"`
+	IsActive    bool      `json:"is_active"`
+	OwnerID     int       `json:"owner_id"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (s Student) GetIPK() float64 {
+	if s.IpkTerakhir > 0 {
+		return s.IpkTerakhir
+	}
+	if s.Grade > 0 {
+		if s.Grade <= 4.0 {
+			return s.Grade
+		}
+		return (s.Grade / 100.0) * 4.0
+	}
+	return 0.0
 }
 
 type Prestation struct {
