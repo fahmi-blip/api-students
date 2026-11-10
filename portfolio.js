@@ -1,6 +1,4 @@
-// Jalankan: mongosh portofolio.js
 db = db.getSiblingDB("praktikum_backend");
-
 // db.student_portfolios.drop();
 
 db.createCollection("student_portfolios", {
@@ -59,7 +57,6 @@ db.student_portfolios.createIndex(
   { name: "projects_technologies_idx" }
 );
 
-// Dokumen contoh (ganti student_id sesuai id mahasiswa yang ada di PostgreSQL)
 db.student_portfolios.insertOne({
   student_id: 1,
   headline: "Backend developer Go",
