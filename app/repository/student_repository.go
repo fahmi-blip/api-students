@@ -22,6 +22,7 @@ type StudentRepository interface {
 	FindAll(ctx context.Context, q model.ListQuery) ([]model.Student, int, error)
 	FindAfterCursor(ctx context.Context, q model.StudentCursorQuery) ([]model.Student, error)
 	FindByID(ctx context.Context, id int) (model.Student, error)
+	FindByUserID(ctx context.Context, userID int) (model.Student, error)
 	Create(ctx context.Context, u model.Student) (model.Student, error)
 	Update(ctx context.Context, u model.Student) (model.Student, error)
 	Delete(ctx context.Context, id int) error
@@ -178,6 +179,26 @@ func (r *studentPostgresRepository) FindByID(
 			return model.Student{}, ErrNotFound
 		}
 		return model.Student{}, fmt.Errorf("mengambil student: %w", err)
+	}
+	return u, nil
+}
+
+func (r *studentPostgresRepository) FindByUserID(
+	ctx context.Context, userID int,
+) (model.Student, error) {
+	var u model.Student
+
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, nim, name, grade, is_active, COALESCE(owner_id, 0), created_at
+		FROM students WHERE owner_id = $1
+		LIMIT 1`, userID,
+	).Scan(&u.ID, &u.Nim, &u.Name, &u.Grade, &u.IsActive, &u.OwnerID, &u.CreatedAt)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Student{}, ErrNotFound
+		}
+		return model.Student{}, fmt.Errorf("mengambil student berdasarkan user id: %w", err)
 	}
 	return u, nil
 }
